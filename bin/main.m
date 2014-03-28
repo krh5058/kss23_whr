@@ -4,10 +4,12 @@ classdef main < handle
     properties
         debug = 1;
         
+        subjinfo        
+     
         conditions = {'lines','bodies'};
-        current_condition
+        format
         blocks = {'1','2','3','4','5','6'}
-        current_block
+        order
         abort = 0;
         
         lists
@@ -16,7 +18,10 @@ classdef main < handle
         monitor
         path
         keys
+        timing
         out
+        
+        head
     end
     
     methods (Static)
@@ -92,6 +97,9 @@ classdef main < handle
                 obj.images.(obj.conditions{i}).screens = [];
             end
             obj.images.misc = [];
+            
+            obj.head.judge = {'Trial','Condition','Picture','Response'};
+            obj.head.sm = {'Block','Trial','Target','Match','Condition','Level','CorrectResponse','SubjectResponse','RT','Accuracy'};
         end
         
         %% Dispset
@@ -202,6 +210,10 @@ classdef main < handle
                 error('main.m (expset): User Cancelled.');
             end
             
+            obj.subjinfo = {udInput{1},udInput{2},udInput{3}};
+            obj.order = udInput{4};
+            obj.timing = udInput{5};
+            
             if obj.debug
                 fprintf('main.m (expset): Setting up key filter.\n');
             end
@@ -261,7 +273,91 @@ classdef main < handle
                 obj.images.misc{ii,2} = obj.readImage([obj.getPath('general') filesep dMisc{ii}]);
             end
         end
-                
+
+        %% formatSections
+        function [displayObjects] = formatSections(obj)
+           
+            obj.format = cell([length(obj.conditions) (1+1+length(obj.blocks)) 2]); % Conditions x Task (1 judgment + 1 practice + # of blocks) x Identifiers (cond,task)
+            
+            displayObjects = cell([size(obj.format,1) size(obj.format,2)]);
+            
+            for i = 1:length(obj.conditions)
+                for j = 1:(1+1+length(obj.blocks))
+                    obj.format{i,j,1} = obj.conditions{i};
+                    switch j
+                        case 1                            
+                            obj.format{i,j,2} = 'judge';
+                            d = obj.listDirectory(obj.getPath(obj.conditions{i}),'jpg');
+                            d = regexp(d(1:end-1),'\n','split');
+                            
+                            % Construct
+                            list = cell([length(d)+1 length(obj.head.judge)]); % Include headers
+                            
+                            list(1,:) = obj.head.judge;
+                            list(2:end,1) = num2cell(1:length(d));
+                            list(2:end,2) = deal(obj.conditions(i));
+                            list(2:end,3) = d(Shuffle(1:length(d)));
+                                                       
+                            screens = obj.images.(obj.conditions{i}).screens(~cellfun(@isempty,cellfun(@(y)(regexp(y,'judge_trial')),obj.images.(obj.conditions{i}).screens(:,1),'UniformOutput',false)),:);
+                            
+                            keymap = obj.getKey('keys1_7');                            
+                        case 2 
+                            obj.format{i,j,2} = 'prac';
+                            screens = obj.images.(obj.conditions{i}).screens(~cellfun(@isempty,cellfun(@(y)(regexp(y,'practrial')),obj.images.(obj.conditions{i}).screens(:,1),'UniformOutput',false)),:);
+                            screens = [screens; obj.images.misc];
+                            keymap = [obj.getKey('qkey') obj.getKey('pkey')];
+                        otherwise
+                            obj.format{i,j,2} = obj.order{j-2}; % Displace 2
+                            screens = obj.images.misc;
+                            keymap = [obj.getKey('qkey') obj.getKey('pkey')];
+                    end                    
+                    stim = obj.images.(obj.conditions{i}).stim;
+                    keymap = [keymap obj.getKey('esckey')];
+                    
+                    displayObjects{i,j} = sectionFactory(obj.debug,obj.conditions{i},obj.format{i,j,2},list,stim,screens,keymap);
+                end
+            end            
+        end
+        
+        %% formatScreens
+        function [displayObjects] = formatScreens(obj)
+            displaySequence = [1 2 3 6 9]; % Before judge, before prac, before task, before block 4, after final block (9)
+            displayObjects = cell([length(obj.conditions) length(displaySequence)]);
+            for i = 1:length(obj.conditions)
+                for j = 1:length(displaySequence)
+                    switch displaySequence(j)
+                        % Screens are searched for in order of their
+                        % presentation
+                        case 1
+                            pat = cell([2 1]);
+                            pat{1} = [obj.conditions{i} '_judge_intro'];
+                            pat{2} = [obj.conditions{i} '_judge_instruct'];
+                        case 2
+                            pat = cell([3 1]);
+                            pat{1} = [obj.conditions{i} '_judge_end'];
+                            pat{2} = [obj.conditions{i} '_sm_intro'];
+                            pat{3} = [obj.conditions{i} '_sm_instruct'];
+                        case 3
+                            pat = cell([1 1]);
+                            pat{1} = [obj.conditions{i} '_sm_begin'];
+                        case 6
+                            pat = cell([1 1]);
+                            pat{1} = [obj.conditions{i} '_sm_halfway'];
+                        case 9
+                            pat = cell([1 1]);
+                            pat{1} = [obj.conditions{i} '_sm_end'];
+                    end
+                    screens = [];
+                    for k = 1:length(pat)
+                        screens = [screens; obj.images.(obj.conditions{i}).screens(~cellfun(@isempty,cellfun(@(y)(regexp(y,pat{k})),obj.images.(obj.conditions{i}).screens(:,1),'UniformOutput',false)),:)];
+                    end
+                    
+                    keymap = [obj.getKey('spacekey') obj.getKey('esckey')];
+                    displayObjects{i,j} = sectionFactory(obj.debug,displaySequence(j),screens,keymap);
+                end
+            end
+        end
+        
         %% getMonitor
         function [monitor] = getMonitor(obj)
             monitor = obj.monitor;
