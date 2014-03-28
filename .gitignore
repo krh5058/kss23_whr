@@ -1,0 +1,15 @@
+/*.d
+/*.exe
+/*.o
+/cscope.out
+
+
+# Ignore content
+/Pictures
+/Pictures/*
+/content/
+/content/*
+
+# Ignore data
+/data/
+/data/*
