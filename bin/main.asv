@@ -216,11 +216,7 @@ classdef main < handle
             d = obj.listDirectory(obj.getPath('general'),'xlsx');
             d = regexp(d(1:end-1),'\n','split');
             
-            orStatement = '';
-            
             for i = 1:length(obj.conditions)
-                
-                orStatement = [orStatement '|' obj.conditions{i}];
                 
                 dCond = d(~cellfun(@isempty,cellfun(@(y)(regexp(y,obj.conditions{i})),d,'UniformOutput',false)));
                 dPrac = dCond(~cellfun(@isempty,cellfun(@(y)(regexp(y,'prac')),dCond,'UniformOutput',false)));
@@ -250,15 +246,13 @@ classdef main < handle
                 end
             end
             
-            dMisc = obj.listDirectory(obj.getPath('general'),'jpg');
+            dMisc = obj.listDirectory(obj.getPath('general'),obj.conditions{i},'jpg');
             dMisc = regexp(dMisc(1:end-1),'\n','split');
-            dMisc = dMisc(cellfun(@isempty,cellfun(@(y)(regexp(y,orStatement(2:end))),dMisc,'UniformOutput',false)));
             
             obj.images.misc = cell([length(dMisc) 2]);
-            obj.images.misc(:,1) = dMisc;
-                
+            
             for ii = 1:length(dMisc)
-                obj.images.misc{ii,2} = obj.readImage([obj.getPath('general') filesep dMisc{ii}]);
+                
             end
         end
                 
