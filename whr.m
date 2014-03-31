@@ -61,17 +61,6 @@ if obj.debug
     fprintf('whr.m: Content setup success!\n')
 end
 
-%% Content parse and format
-if obj.debug
-    fprintf('whr.m: Content parse and format...\n')
-end
-
-[displayObjects] = obj.formatSections;
-[displayScreenObjects] = obj.formatScreens;
-
-if obj.debug
-    fprintf('whr.m: Content parse and format success!\n')
-end
 %% Monitor initialization
 if obj.debug
     fprintf('whr.m: Monitor initialization...\n')
@@ -81,6 +70,18 @@ obj.dispset;
 
 if obj.debug
     fprintf('whr.m: Monitor initialization success!\n')
+end
+
+%% Content parse and format
+if obj.debug
+    fprintf('whr.m: Content parse and format...\n')
+end
+
+[displayObjects] = obj.formatSections(presObj);
+[displayScreenObjects] = obj.formatScreens(presObj);
+
+if obj.debug
+    fprintf('whr.m: Content parse and format success!\n')
 end
 
 end

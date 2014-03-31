@@ -6,13 +6,19 @@ classdef pres < handle
     end
     
     methods (Static)
-        %% Imgshow
+        %% mkimg
         % Arguments: Screen window, picture matrix
         % Output: Texture handle
-        function [tex] = imgshow(w,pic)
+        function [tex] = mkimg(w,pic)
             tex = Screen('MakeTexture',w,pic);
             Screen('DrawTexture',w,tex);
-            Screen('Flip',w);
+        end
+        
+        %% screenflip
+        % Arguments: Screen window, picture matrix
+        % Output: Texture handle
+        function [secs] = screenflip(w)
+            [secs] = Screen('Flip',w);
         end
         
         %% Closetex
@@ -20,7 +26,7 @@ classdef pres < handle
         % Output: Texture handle
         function [result] = closetex(tex)
             try
-                screen('close',tex);
+                Screen('close',tex);
                 result = 0;
             catch me
                 disp(me);
@@ -31,9 +37,9 @@ classdef pres < handle
         %% Fixshow
         % Arguments: Monitor data structure
         function fixshow(monitor)
-            Screen('DrawLine',w,monitor.black,monitor.center_W-20,monitor.u_center_H,monitor.center_W+20,monitor.u_center_H,7);
-            Screen('DrawLine',w,monitor.black,monitor.center_W,monitor.u_center_H-20,monitor.center_W,monitor.u_center_H+20,7);
-            Screen('Flip',w);
+            Screen('DrawLine',monitor.w,monitor.black,monitor.center_W-20,monitor.center_H,monitor.center_W+20,monitor.center_H,7);
+            Screen('DrawLine',monitor.w,monitor.black,monitor.center_W,monitor.center_H-20,monitor.center_W,monitor.center_H+20,7);
+            Screen('Flip',monitor.w);
         end
         
     end

@@ -275,7 +275,7 @@ classdef main < handle
         end
 
         %% formatSections
-        function [displayObjects] = formatSections(obj)
+        function [displayObjects] = formatSections(obj,presObj)
            
             obj.format = cell([length(obj.conditions) (1+1+length(obj.blocks)) 2]); % Conditions x Task (1 judgment + 1 practice + # of blocks) x Identifiers (cond,task)
             
@@ -290,8 +290,8 @@ classdef main < handle
                             d = obj.listDirectory(obj.getPath(obj.conditions{i}),'jpg');
                             d = regexp(d(1:end-1),'\n','split');
                             
-                            % Construct
-                            list = cell([length(d)+1 length(obj.head.judge)]); % Include headers
+                            % Construct list
+                            list = cell([length(d)+1 length(obj.head.judge)]); % Includes headers
                             
                             list(1,:) = obj.head.judge;
                             list(2:end,1) = num2cell(1:length(d));
@@ -303,24 +303,58 @@ classdef main < handle
                             keymap = obj.getKey('keys1_7');                            
                         case 2 
                             obj.format{i,j,2} = 'prac';
+                            
+                            % Construct list
+                            list = cell([size(obj.lists{i,1},1) length(obj.head.sm)]); % Includes headers, 1 is practice index
+                            list(1,:) = obj.head.sm; % Headers
+                            list(2:end,2) = num2cell([1:size(obj.lists{i,1},1)-1]'); % Trials
+                            list(2:end,5) = deal(obj.conditions(i)); % Condition
+                            
+                            % Fill in
+                            for k = 1:length(obj.lists{i,1}(1,:))
+                                tempHead = obj.lists{i,1}{1,k};
+                                listIndex = strcmpi(obj.head.sm,tempHead);
+                                list(2:end,listIndex) = obj.lists{i,1}(2:end,k);
+                            end
+                            
                             screens = obj.images.(obj.conditions{i}).screens(~cellfun(@isempty,cellfun(@(y)(regexp(y,'practrial')),obj.images.(obj.conditions{i}).screens(:,1),'UniformOutput',false)),:);
                             screens = [screens; obj.images.misc];
                             keymap = [obj.getKey('qkey') obj.getKey('pkey')];
                         otherwise
                             obj.format{i,j,2} = obj.order{j-2}; % Displace 2
+                            
+                            % Construct list
+                            blockIndices = cellfun(@any,cellfun(@(y)(str2double(obj.format{i,j,2})==y),obj.lists{i,2}(2:end,1),'UniformOutput',false)); % Index for block, not including headers
+                            inListHead = obj.lists{i,2}(1,:); % Keep input headers
+                            tempList = obj.lists{i,2}(2:end,:); 
+                            tempList = tempList(blockIndices,:); % Parse without headers
+                            
+                            list = cell([size(tempList,1)+1 length(obj.head.sm)]); % Includes headers, 2 is task index
+                            list(1,:) = obj.head.sm; % Headers
+                            list(2:end,2) = num2cell([1:size(tempList,1)]'); % Trials
+                            list(2:end,5) = deal(obj.conditions(i)); % Condition
+                            
+                            % Fill in
+                            for k = 1:length(inListHead)
+                                tempHead = inListHead{k};
+                                listIndex = strcmpi(obj.head.sm,tempHead);
+                                list(2:end,listIndex) = tempList(:,k);
+                            end
+                            
                             screens = obj.images.misc;
                             keymap = [obj.getKey('qkey') obj.getKey('pkey')];
                     end                    
                     stim = obj.images.(obj.conditions{i}).stim;
                     keymap = [keymap obj.getKey('esckey')];
                     
-                    displayObjects{i,j} = sectionFactory(obj.debug,obj.conditions{i},obj.format{i,j,2},list,stim,screens,keymap);
+                    displayObjects{i,j} = sectionFactory(obj.debug,obj.monitor,obj.conditions{i},obj.format{i,j,2},list,stim,screens,keymap,obj.timing);
+                    displayObjects{i,j}.loadPresObj(presObj);
                 end
-            end            
+            end
         end
         
         %% formatScreens
-        function [displayObjects] = formatScreens(obj)
+        function [displayObjects] = formatScreens(obj,presObj)
             displaySequence = [1 2 3 6 9]; % Before judge, before prac, before task, before block 4, after final block (9)
             displayObjects = cell([length(obj.conditions) length(displaySequence)]);
             for i = 1:length(obj.conditions)
@@ -353,7 +387,8 @@ classdef main < handle
                     end
                     
                     keymap = [obj.getKey('spacekey') obj.getKey('esckey')];
-                    displayObjects{i,j} = sectionFactory(obj.debug,displaySequence(j),screens,keymap);
+                    displayObjects{i,j} = sectionFactory(obj.debug,obj.monitor,displaySequence(j),screens,keymap);
+                    displayObjects{i,j}.loadPresObj(presObj);
                 end
             end
         end
