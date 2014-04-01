@@ -45,6 +45,7 @@ if obj.debug
 end
 
 obj.expset;
+obj.createSaveDir;
 
 if obj.debug
     fprintf('whr.m: Experimental setup success!\n')
@@ -80,9 +81,94 @@ end
 [displayObjects] = obj.formatSections(presObj);
 [displayScreenObjects] = obj.formatScreens(presObj);
 
+obj.displayObjects = displayObjects;
+obj.displayScreenObjects = displayScreenObjects;
+obj.saveSession;
+
 if obj.debug
     fprintf('whr.m: Content parse and format success!\n')
 end
+
+%% Presentation Sequence
+if obj.debug
+    fprintf('whr.m: Begin presentation sequence...\n')
+end
+
+if ~obj.debug
+   main.initPres;
+end
+
+displayIndices = cellfun(@getDisplayIndex,displayScreenObjects);
+for i = 1:length(obj.conditions)
+    presIndex = 1;
+    try
+    while presIndex <= size(displayObjects,2)
+        % Beginning presentation
+        displayIndex = presIndex==displayIndices(i,:);
+        if any(displayIndex)
+            displayScreenObjects{i,displayIndex}.run
+            obj.abort = displayScreenObjects{i,displayIndex}.abort;
+            if ~obj.abort
+                displayScreenObjects{i,displayIndex}.markComplete(true);
+            end
+        end
+        
+        if obj.abort
+            break;
+        end
+        
+        % Task presentation
+        displayObjects{i,presIndex}.run;
+        obj.abort = displayObjects{i,presIndex}.abort;
+        if ~obj.abort
+            displayObjects{i,presIndex}.markComplete(true);
+        end
+        
+        if obj.abort
+            break;
+        end
+        
+        presIndex = presIndex + 1;
+        
+    end
+    
+    % Ending presentation
+    displayIndex = presIndex==displayIndices(i,end);
+    if any(displayIndex)
+        displayScreenObjects{i,end}.run;
+        obj.abort = displayScreenObjects{i,end}.abort;
+        if ~obj.abort
+            displayScreenObjects{i,end}.markComplete(true);
+        end
+    end
+    
+    if obj.abort
+        if obj.debug
+            fprintf('whr.m: User aborted.\n')
+        end
+        break;
+    end
+    catch ME
+        disp(ME);
+    end
+end
+
+obj.displayObjects = displayObjects;
+obj.displayScreenObjects = displayScreenObjects;
+obj.saveSession;
+
+if obj.debug
+    fprintf('whr.m: Presentation sequence success!\n')
+end
+
+Screen('CloseAll');
+
+if ~obj.debug
+    main.endPres; 
+end
+
+%% WriteData
+obj.writeData;
 
 end
 

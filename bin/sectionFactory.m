@@ -16,6 +16,8 @@ classdef sectionFactory < handle
         displayIndex
         
         presObj
+        
+        complete = false;
     end
     
     methods
@@ -46,62 +48,121 @@ classdef sectionFactory < handle
         
         function run(obj)
             RestrictKeysForKbCheck([obj.responseFilter]);
-            switch obj.task
-                case 'judge'
-                    for i = 1:length(obj.list)
-                        [tex1] = obj.presObj.mkimg(obj.monitor.w,obj.screens{1,2}); % Judgment trial screen
-                        [tex2] = obj.presObj.mkimg(obj.monitor.w,obj.stim{strcmp(obj.list{i,3},obj.stim(:,1)),2});
-                        obj.presObj.screenflip(obj.monitor.w);
-                        [~,resp] = KbStrokeWait;
-                        
-                        obj.presObj.closetex(tex1);
-                        obj.presObj.closetex(tex2);
-                        if find(resp)==KbName('Escape')
-                            obj.abortFnc;
-                            return;
-                        else
-                            rate = KbName(find(resp));
-                            obj.list(i,5) = regexp(rate,'\d','match');
+            if isempty(obj.displayIndex)
+                switch obj.task
+                    case 'judge'
+                        for i = 1:size(obj.list,1)
+                            [tex1] = obj.presObj.mkimg(obj.monitor.w,obj.screens{1,2}); % Judgment trial screen
+                            [tex2] = obj.presObj.mkimg(obj.monitor.w,obj.stim{strcmp(obj.list{i,3},obj.stim(:,1)),2});
+                            obj.presObj.screenflip(obj.monitor.w);
+                            [~,resp] = KbStrokeWait;
+                            
+                            obj.presObj.closetex(tex1);
+                            obj.presObj.closetex(tex2);
+                            if find(resp)==KbName('Escape')
+                                obj.abortFnc;
+                                return;
+                            else
+                                rate = KbName(find(resp));
+                                obj.list(i,4) = regexp(rate,'\d','match');
+                            end
+                            
+                            % Added fixation
+                            obj.presObj.fixshow(obj.monitor);
+                            pause(.4); % Arbitrary pause duration
                         end
-                    end
-                case 'prac'
-                    for i = 1:length(obj.list)
-                        [tex1] = obj.presObj.mkimg(obj.monitor.w,obj.screens{1,2}); % Practice trial screen
-                        [tex2] = obj.presObj.mkimg(obj.monitor.w,obj.stim{~cellfun(@isempty,cellfun(@(y)(regexp(y,obj.list{i,3},'match')),obj.stim(:,1),'UniformOutput',false)),2}); % Target
-                        obj.presObj.screenflip(obj.monitor.w);
-                        pause(obj.timing(1));
-                        [tex3] = obj.presObj.mkimg(obj.monitor.w,obj.screens{1,2}); % Practice trial screen
-                        [tex4] = obj.presObj.mkimg(obj.monitor.w,obj.screens{3,2}); % Mask
-                        obj.presObj.screenflip(obj.monitor.w);
-                        pause(obj.timing(2));
-                        [tex5] = obj.presObj.mkimg(obj.monitor.w,obj.screens{1,2}); % Practice trial screen
-                        [tex6] = obj.presObj.mkimg(obj.monitor.w,obj.stim{~cellfun(@isempty,cellfun(@(y)(regexp(y,obj.list{i,4},'match')),obj.stim(:,1),'UniformOutput',false)),2}); % Match
-                        [t0] = obj.presObj.screenflip(obj.monitor.w);
-                        
-                        [t1,resp] = KbStrokeWait([],t0+obj.timing(3));
-                        
-                        obj.presObj.closetex(tex1);
-                        obj.presObj.closetex(tex2);
-                        obj.presObj.closetex(tex3);
-                        obj.presObj.closetex(tex4);
-                        obj.presObj.closetex(tex5);
-                        obj.presObj.closetex(tex6);
-                        
-                        if find(resp)==KbName('Escape')
-                            obj.abortFnc;
-                            return;
-                        elseif ~any(resp)                            
-                        else
-                            subjresp = KbName(find(resp));
-                            obj.list{i,8} = subjresp;
-                            obj.list{i,9} = t1-t0;
-                            obj.list{i,10} = strcmp(subjresp,obj.list{i,7});
+                    case 'prac'
+                        for i = 1:size(obj.list,1)
+                            [tex1] = obj.presObj.mkimg(obj.monitor.w,obj.screens{1,2}); % Practice trial screen
+                            [tex2] = obj.presObj.mkimg(obj.monitor.w,obj.stim{~cellfun(@isempty,cellfun(@(y)(regexp(y,obj.list{i,3},'match')),obj.stim(:,1),'UniformOutput',false)),2}); % Target
+                            obj.presObj.screenflip(obj.monitor.w);
+                            pause(obj.timing(1));
+                            [tex3] = obj.presObj.mkimg(obj.monitor.w,obj.screens{1,2}); % Practice trial screen
+                            [tex4] = obj.presObj.mkimg(obj.monitor.w,obj.screens{3,2}); % Mask
+                            obj.presObj.screenflip(obj.monitor.w);
+                            pause(obj.timing(2));
+                            [tex5] = obj.presObj.mkimg(obj.monitor.w,obj.screens{1,2}); % Practice trial screen
+                            [tex6] = obj.presObj.mkimg(obj.monitor.w,obj.stim{~cellfun(@isempty,cellfun(@(y)(regexp(y,obj.list{i,4},'match')),obj.stim(:,1),'UniformOutput',false)),2}); % Match
+                            [t0] = obj.presObj.screenflip(obj.monitor.w);
+                            
+                            [t1,resp] = KbStrokeWait([],t0+obj.timing(3));
+                            
+                            obj.presObj.closetex(tex1);
+                            obj.presObj.closetex(tex2);
+                            obj.presObj.closetex(tex3);
+                            obj.presObj.closetex(tex4);
+                            obj.presObj.closetex(tex5);
+                            obj.presObj.closetex(tex6);
+                            
+                            if find(resp)==KbName('Escape')
+                                obj.abortFnc;
+                                return;
+                            elseif ~any(resp)
+                                [tex7] = obj.presObj.mkimg(obj.monitor.w,obj.screens{4,2}); % Incorrect
+                                obj.presObj.screenflip(obj.monitor.w);
+                                pause(.4); % Arbitrary pause duration
+                                obj.presObj.closetex(tex7);
+                            else
+                                subjresp = KbName(find(resp));
+                                obj.list{i,8} = subjresp;
+                                obj.list{i,9} = t1-t0;
+                                obj.list{i,10} = strcmp(subjresp,obj.list{i,7});
+                                if obj.list{i,10}
+                                    [tex7] = obj.presObj.mkimg(obj.monitor.w,obj.screens{5,2}); % Correct
+                                else
+                                    [tex7] = obj.presObj.mkimg(obj.monitor.w,obj.screens{4,2}); % Incorrect
+                                end
+                                obj.presObj.screenflip(obj.monitor.w);
+                                pause(.4); % Arbitrary pause duration
+                                obj.presObj.closetex(tex7);
+                            end
+                            
+                            obj.presObj.fixshow(obj.monitor);
+                            pause(obj.timing(4));
                         end
-                        
-                        obj.presObj.fixshow(obj.monitor);                        
-                        pause(obj.timing(4));
+                    otherwise % Other block trials
+                        for i = 1:size(obj.list,1)
+                            [tex1] = obj.presObj.mkimg(obj.monitor.w,obj.stim{~cellfun(@isempty,cellfun(@(y)(regexp(y,obj.list{i,3},'match')),obj.stim(:,1),'UniformOutput',false)),2}); % Target
+                            obj.presObj.screenflip(obj.monitor.w);
+                            pause(obj.timing(1));
+                            [tex2] = obj.presObj.mkimg(obj.monitor.w,obj.screens{2,2}); % Mask
+                            obj.presObj.screenflip(obj.monitor.w);
+                            pause(obj.timing(2));
+                            [tex3] = obj.presObj.mkimg(obj.monitor.w,obj.stim{~cellfun(@isempty,cellfun(@(y)(regexp(y,obj.list{i,4},'match')),obj.stim(:,1),'UniformOutput',false)),2}); % Match
+                            [t0] = obj.presObj.screenflip(obj.monitor.w);
+                            
+                            [t1,resp] = KbStrokeWait([],t0+obj.timing(3));
+                            
+                            obj.presObj.closetex(tex1);
+                            obj.presObj.closetex(tex2);
+                            obj.presObj.closetex(tex3);
+                            
+                            if find(resp)==KbName('Escape')
+                                obj.abortFnc;
+                                return;
+                            elseif ~any(resp)
+                            else
+                                subjresp = KbName(find(resp));
+                                obj.list{i,8} = subjresp;
+                                obj.list{i,9} = t1-t0;
+                                obj.list{i,10} = strcmp(subjresp,obj.list{i,7});
+                            end
+                            
+                            obj.presObj.fixshow(obj.monitor);
+                            pause(obj.timing(4));
+                        end
+                end
+            else
+                for i = 1:size(obj.screens,1)
+                    [tex] = obj.presObj.mkimg(obj.monitor.w,obj.screens{i,2});
+                    obj.presObj.screenflip(obj.monitor.w);
+                    [~,resp] = KbStrokeWait;
+                    if find(resp)==KbName('Escape')
+                        obj.abortFnc;
+                        return;
                     end
-                otherwise
+                    obj.presObj.closetex(tex);
+                end
             end
             obj.presObj.screenflip(obj.monitor.w); % Clear screen
             RestrictKeysForKbCheck([]);
@@ -111,6 +172,20 @@ classdef sectionFactory < handle
             obj.presObj.screenflip(obj.monitor.w);
             RestrictKeysForKbCheck([]);
             obj.abort = 1;
+        end
+        
+        function [displayIndex] = getDisplayIndex(obj)
+            if ~isempty(obj.displayIndex)
+                displayIndex = obj.displayIndex;
+            end
+        end
+        
+        function markComplete(obj,state)
+            obj.complete = state;
+        end
+        
+        function [state] = getState(obj)
+            state = obj.complete;
         end
     end
 end

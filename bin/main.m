@@ -4,7 +4,7 @@ classdef main < handle
     properties
         debug = 1;
         
-        subjinfo        
+       
      
         conditions = {'lines','bodies'};
         format
@@ -14,14 +14,17 @@ classdef main < handle
         
         lists
         images
+        head
         
+        subjinfo
         monitor
         path
         keys
         timing
-        out
         
-        head
+        displayObjects
+        displayScreenObjects
+        
     end
     
     methods (Static)
@@ -85,6 +88,32 @@ classdef main < handle
         function [image] = readImage(path)
             image = imread(path);
         end
+        
+        %% initPres
+        function initPres
+            ListenChar(2);
+            HideCursor;
+            if ispc
+                try
+                    ShowHideFullWinTaskbarMex(0);
+                catch ME
+                    ShowHideWinTaskbarMex(0);
+                end
+            end
+        end
+        
+        %% EndPres
+        function endPres
+            ListenChar(0);
+            ShowCursor;
+            if ispc
+                try
+                    ShowHideFullWinTaskbarMex(1);
+                catch ME
+                    ShowHideWinTaskbarMex(1);
+                end
+            end
+        end
     end
     
     methods
@@ -100,6 +129,7 @@ classdef main < handle
             
             obj.head.judge = {'Trial','Condition','Picture','Response'};
             obj.head.sm = {'Block','Trial','Target','Match','Condition','Level','CorrectResponse','SubjectResponse','RT','Accuracy'};
+            obj.head.summary = {'Age','Gender','Block','Level','Accuracy','GlobalMeanRT','CleanMeanRTUpper','CleanMeanRTLower','GoodMeanRT'};
         end
         
         %% Dispset
@@ -195,6 +225,107 @@ classdef main < handle
             end
         end
         
+        %% CreateSaveDir
+        function createSaveDir(obj)
+            
+            d = dir(obj.path.out);
+            d = {d([d.isdir]).name};
+            if any(strcmp(obj.subjinfo{1},d))
+                overWriteResponse = questdlg(sprintf('Subject ID, ''%s'', already exists.  Would you like to overwrite?',[obj.path.out filesep obj.subjinfo{1}]), ...
+                    'Overwrite directory', ...
+                    'Yes','Exit','Exit');
+                
+                % Remove and remake directory if user clicks "Yes"
+                if strcmpi(overWriteResponse,'Exit') || isempty(overWriteResponse)
+                    if obj.debug
+                        error('main.m (createSaveDir): User cancelled.');
+                    end
+                    return;
+                elseif strcmpi(overWriteResponse,'Yes')
+                    if obj.debug
+                        fprintf('main.m (createSaveDir):  Attempting to remove directory -- %s.\n',obj.subjinfo{1});
+                    end
+                    rmdir([obj.path.out filesep obj.subjinfo{1}],'s');
+                    mkdir([obj.path.out filesep obj.subjinfo{1}]);
+                end
+            else
+                mkdir([obj.path.out filesep obj.subjinfo{1}]);
+            end
+            
+            obj.path.session = [obj.path.out filesep obj.subjinfo{1}];
+            
+        end
+        
+        %% SaveSession
+        function saveSession(obj)
+            save([obj.path.session filesep 'session'],'obj');
+        end
+        
+        %% WriteData
+        function writeData(obj)
+            pathname = [obj.path.session filesep];
+            state = cellfun(@getState,obj.displayObjects);
+            for i = 1:length(obj.conditions)
+                blockdata.(obj.conditions{i}).trial = [];
+                blockdata.(obj.conditions{i}).summary = [];
+                for j = 1:size(obj.format,2) % Task index
+                    if state(i,j)
+                        switch obj.format{i,j,2} % Task index
+                            case 'judge'
+                                filename = [obj.subjinfo{1} '_' obj.conditions{i} '_judgment.csv'];
+                                out = [obj.displayObjects{i,j}.headers; obj.displayObjects{i,j}.list];
+                                cell2csv([pathname filename],out);
+                            case 'prac'
+                                filename = [obj.subjinfo{1} '_' obj.conditions{i} '_practrial.csv'];
+                                out = [obj.displayObjects{i,j}.headers; obj.displayObjects{i,j}.list];
+                                cell2csv([pathname filename],out);
+                            otherwise
+                                blockdata.(obj.conditions{i}).trial = [blockdata.(obj.conditions{i}).trial; obj.displayObjects{i,j}.list];
+                                
+                                levels = unique([obj.displayObjects{i,j}.list{:,6}]); % Levels col = 6
+                                levelData = zeros([length(levels) 5]); % acc, globalMeanRT, cleanMeanRT_upper, cleanMeanRT_lower, goodMeanRT
+                                for k = 1:length(levels)
+                                    tempLevelIndex = cellfun(@(y)(y==levels(k)),obj.displayObjects{i,j}.list(:,6));  % Levels col = 6
+                                    rt = obj.displayObjects{i,j}.list(tempLevelIndex,9); % RT col = 9
+                                    acc = obj.displayObjects{i,j}.list(tempLevelIndex,10); % Acc col = 10
+                                    accIndex = ~cellfun(@isempty,acc); % Existing indices
+                                    acc = [acc{accIndex}];
+                                    rt = [rt{accIndex}];
+                                    levelData(k,1) = mean(acc); % All existing accuracy
+                                    globalMeanRT = rt(acc==1); % RT of accuracy == 1
+                                    levelData(k,2) = mean(globalMeanRT);
+                                    levelData(k,3) = levelData(k,2) + 2*std(globalMeanRT); % globalMeanRT + 2*std(RT & accuracy == 1)
+                                    levelData(k,4) = levelData(k,2) - 2*std(globalMeanRT); % globalMeanRT - 2*std(RT & accuracy == 1)
+                                    bounds = globalMeanRT <= levelData(k,3) & globalMeanRT >= levelData(k,4);
+                                    levelData(k,5) = mean(globalMeanRT(bounds)); % RT within bounds                                    
+                                end
+                                tempSubjFormat = [repmat({obj.displayObjects{i,j}.task},[length(levels) 1]), repmat(obj.subjinfo(2),[length(levels) 1]), repmat(obj.subjinfo(3),[length(levels) 1])]; % 2 = Age, 3 = Gender
+                                tempLevelFormat =  num2cell([levels',levelData]);
+                                blockdata.(obj.conditions{i}).summary.(['block' obj.displayObjects{i,j}.task]) = [tempSubjFormat, tempLevelFormat];
+                               
+                        end
+                    end
+                end
+                
+                if ~isempty(blockdata.(obj.conditions{i}).trial)
+                    filename = [obj.subjinfo{1} '_' obj.conditions{i} '_trial.csv'];
+                    out = [obj.head.sm; blockdata.(obj.conditions{i}).trial];
+                    cell2csv([pathname filename],out);
+                end
+                
+                if ~isempty(blockdata.(obj.conditions{i}).summary)
+                    filename = [obj.subjinfo{1} '_' obj.conditions{i} '_summary.csv'];
+                    out = obj.head.summary;
+                    for l = 1:size(obj.format,2)-2
+                        if isfield(blockdata.bodies.summary,['block' int2str(l)])
+                            out = [out; blockdata.bodies.summary.(['block' int2str(l)])];
+                        end
+                    end
+                    cell2csv([pathname filename],out);                    
+                end
+            end
+        end
+        
         %% Expset
         function expset(obj)
             if obj.debug
@@ -264,7 +395,7 @@ classdef main < handle
             
             dMisc = obj.listDirectory(obj.getPath('general'),'jpg');
             dMisc = regexp(dMisc(1:end-1),'\n','split');
-            dMisc = dMisc(cellfun(@isempty,cellfun(@(y)(regexp(y,orStatement(2:end))),dMisc,'UniformOutput',false)));
+            dMisc = sort(dMisc(cellfun(@isempty,cellfun(@(y)(regexp(y,orStatement(2:end))),dMisc,'UniformOutput',false))));
             
             obj.images.misc = cell([length(dMisc) 2]);
             obj.images.misc(:,1) = dMisc;
