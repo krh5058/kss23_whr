@@ -2,10 +2,8 @@ classdef main < handle
     % main.m class for WHR
     
     properties
-        debug = 1;
+        debug = 0;
         
-       
-     
         conditions = {'lines','bodies'};
         format
         blocks = {'1','2','3','4','5','6'}
@@ -299,7 +297,7 @@ classdef main < handle
                                     bounds = globalMeanRT <= levelData(k,3) & globalMeanRT >= levelData(k,4);
                                     levelData(k,5) = mean(globalMeanRT(bounds)); % RT within bounds                                    
                                 end
-                                tempSubjFormat = [repmat({obj.displayObjects{i,j}.task},[length(levels) 1]), repmat(obj.subjinfo(2),[length(levels) 1]), repmat(obj.subjinfo(3),[length(levels) 1])]; % 2 = Age, 3 = Gender
+                                tempSubjFormat = [repmat(obj.subjinfo(2),[length(levels) 1]), repmat(obj.subjinfo(3),[length(levels) 1]), repmat({obj.displayObjects{i,j}.task},[length(levels) 1])]; % 2 = Age, 3 = Gender
                                 tempLevelFormat =  num2cell([levels',levelData]);
                                 blockdata.(obj.conditions{i}).summary.(['block' obj.displayObjects{i,j}.task]) = [tempSubjFormat, tempLevelFormat];
                                
@@ -317,8 +315,8 @@ classdef main < handle
                     filename = [obj.subjinfo{1} '_' obj.conditions{i} '_summary.csv'];
                     out = obj.head.summary;
                     for l = 1:size(obj.format,2)-2
-                        if isfield(blockdata.bodies.summary,['block' int2str(l)])
-                            out = [out; blockdata.bodies.summary.(['block' int2str(l)])];
+                        if isfield(blockdata.(obj.conditions{i}).summary,['block' int2str(l)])
+                            out = [out; blockdata.(obj.conditions{i}).summary.(['block' int2str(l)])];
                         end
                     end
                     cell2csv([pathname filename],out);                    

@@ -167,8 +167,16 @@ if ~obj.debug
     main.endPres; 
 end
 
-%% WriteData
+%% Writing output
+if obj.debug
+    fprintf('whr.m: Writing output...\n')
+end
+
 obj.writeData;
+
+if obj.debug
+    fprintf('whr.m: Writing output!\n')
+end
 
 end
 

@@ -1,0 +1,13 @@
+Block,Trial,Target,Match,Condition,Level,CorrectResponse,SubjectResponse,RT,Accuracy
+prac,1,WHR_0.82,WHR_0.82,lines,0,q,q,0.076541,TRUE
+prac,2,WHR_0.70,WHR_0.67,lines,0.03,p,q,0.20257,FALSE
+prac,3,WHR_0.70,WHR_0.74,lines,0.04,p,q,0.18006,FALSE
+prac,4,WHR_0.80,WHR_0.80,lines,0,q,q,0.085732,TRUE
+prac,5,WHR_0.68,WHR_0.68,lines,0,q,q,0.13083,TRUE
+prac,6,WHR_0.78,WHR_0.74,lines,0.04,p,q,0.36998,FALSE
+prac,7,WHR_0.86,WHR_0.83,lines,0.03,p,,,
+prac,8,WHR_0.78,WHR_0.78,lines,0,q,q,0.39042,TRUE
+prac,9,WHR_0.71,WHR_0.71,lines,0,q,q,0.19063,TRUE
+prac,10,WHR_0.78,WHR_0.81,lines,0.03,p,p,0.13571,TRUE
+prac,11,WHR_0.88,WHR_0.88,lines,0,q,p,0.070104,FALSE
+prac,12,WHR_0.86,WHR_0.90,lines,0.04,p,q,0.14064,FALSE

@@ -140,7 +140,8 @@ classdef sectionFactory < handle
                             if find(resp)==KbName('Escape')
                                 obj.abortFnc;
                                 return;
-                            elseif ~any(resp)
+                            elseif ~any(resp) % No response
+                            elseif length(find(resp))>1 % Multiple respones
                             else
                                 subjresp = KbName(find(resp));
                                 obj.list{i,8} = subjresp;
