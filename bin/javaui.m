@@ -14,7 +14,7 @@ import java.lang.Integer
 frame = JFrame('Experiment Info');
 callback4 = @(obj,evt)onClose(obj,evt); % Callback for close button
 set(frame,'WindowClosingCallback',callback4);
-frame.setSize(400,425);
+frame.setSize(500,425);
 toolkit = Toolkit.getDefaultToolkit();
 screenSize = toolkit.getScreenSize();
 x = (screenSize.width - frame.getWidth()) / 2;
@@ -56,8 +56,8 @@ rb2Panel.add(female);
 
 % Set-up left pane
 left1 = JPanel(GridBagLayout());
-left1.setMinimumSize(Dimension(150,275));
-left1.setPreferredSize(Dimension(150,275));
+left1.setMinimumSize(Dimension(250,275));
+left1.setPreferredSize(Dimension(250,275));
 gbc = GridBagConstraints();
 gbc.fill = GridBagConstraints.HORIZONTAL;
 gbc.gridx = 0;
@@ -141,8 +141,8 @@ set(ebh,'MouseClickedCallback', callback4);
 
 % Set-up bottom pane
 bot = JPanel(GridBagLayout());
-bot.setMinimumSize(Dimension(400,125));
-bot.setPreferredSize(Dimension(400,125));
+bot.setMinimumSize(Dimension(500,125));
+bot.setPreferredSize(Dimension(500,125));
 gbc = GridBagConstraints();
 gbc.fill = GridBagConstraints.BOTH;
 gbc.weightx = 1;
@@ -244,8 +244,8 @@ end
 
 % Set-up left pane
 left2 = JPanel(GridLayout(4,1));
-left2.setMinimumSize(Dimension(275,325));
-left2.setPreferredSize(Dimension(275,325));
+left2.setMinimumSize(Dimension(375,325));
+left2.setPreferredSize(Dimension(375,325));
 left2.add(p1Panel);
 left2.add(maskPanel);
 left2.add(p2Panel);

@@ -77,14 +77,15 @@ classdef main < handle
         function [list] = readList(path)
             [num,txt] = xlsread(path);
             num = num2cell(num);
-            if ismac
-                num = num(2:end,:);
-            end
             if size(num,2) == 2
                 txt(2:end,1) = num(:,1); % First column, second row including headers
                 txt(2:end,2) = num(:,2); % Second column, second row including headers
             elseif size(num,2) == 1
-                txt(2:end,2) = num; % Second column, second row including headers
+                if ispc
+                    txt(2:end,2) = num; % Second column, second row including headers
+                elseif ismac
+                    txt(2:end,2) = num(2:end; % Second column, second row including headers
+                end
             else
                 error('main.m (readList): Error reading xlsx data');
             end
