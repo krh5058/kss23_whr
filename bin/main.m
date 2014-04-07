@@ -307,7 +307,7 @@ classdef main < handle
             if ispc
                 d = obj.listDirectory(obj.getPath('general'),'xlsx');
             elseif ismac
-                d = obj.listDirectory(obj.getPath('general'),'xls',[],[],'xlsx');
+                d = obj.listDirectory(obj.getPath('general'),'xls');
             end
             d = regexp(d(1:end-1),'\n','split');
             
