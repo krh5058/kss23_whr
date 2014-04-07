@@ -1,4 +1,4 @@
-function [frame] = javaui(blockvals)
+function [frame] = javaui(blockvals,conditions,debug)
 % javaui.m
 % 9/13/13
 % Author: Ken Hwang
@@ -20,6 +20,12 @@ screenSize = toolkit.getScreenSize();
 x = (screenSize.width - frame.getWidth()) / 2;
 y = (screenSize.height - frame.getHeight()) / 2;
 frame.setLocation(x, y);
+
+% Setting up data models and controller objects
+buttonHeaderHash = Hashtable();
+headIndex = 1;
+blockArray = javaArray('java.lang.Object',length(blockvals),1);
+condArray = javaArray('java.lang.Object',length(conditions),1);
 
 %% Tabbed pane 1
 
@@ -87,38 +93,41 @@ t3 = BorderFactory.createTitledBorder('Unused Orders:');
 btn1Panel.setBorder(t3);
 
 % Array definition for JTable and run list buttons
-headArray = javaArray('java.lang.String',1);
-headArray(1) = java.lang.String('Blocks');
-listArray = javaArray('java.lang.Object',length(blockvals),1);
-btn = cell([length(blockvals) 3]);
+blockHeadArray = java.lang.String('Blocks');
+buttonHeaderHash.put(Integer(headIndex),blockHeadArray);
+headIndex = headIndex + 1;
 callback3 = @(obj,evt)onListSelect(obj,evt);
+blockBtns = cell([length(blockvals) 4]);
 for i = 1:length(blockvals)
-    listArray(i,1) = java.lang.String(blockvals{i});
-    btn{i,1} = JButton(blockvals{i});
-    btn{i,2} = handle(btn{i,1},'CallbackProperties');
-    btn{i,3} = 0; % False flag
-    set(btn{i,2},'MouseClickedCallback', callback3);
-    btn{i,1}.setEnabled(0);
-    btn1Panel.add(btn{i,1}, gbc);
+    blockArray(i,1) = java.lang.String(blockvals{i});
+    blockBtns{i,1} = JButton(blockvals{i});
+    blockBtns{i,2} = handle(blockBtns{i,1},'CallbackProperties');
+    blockBtns{i,3} = 0; % False flag
+%     blockBtns{i,4} = blockHeadArray;
+    set(blockBtns{i,2},'MouseClickedCallback', callback3);
+    blockBtns{i,2}.setActionCommand(blockHeadArray(1));
+    blockBtns{i,1}.setEnabled(0);
+    btn1Panel.add(blockBtns{i,1}, gbc);
 end
 
 % Set-up reset button
 resetBtn = JButton('Reset');
 rbh = handle(resetBtn,'CallbackProperties');
+resetBtn.setActionCommand(blockHeadArray(1));
 callback2 = @(obj,evt)onReset(obj,evt);
 set(rbh,'MouseClickedCallback', callback2);
 
 % Define JTable
-table = JTable();
-dataModel = DefaultTableModel(listArray,headArray);
-table.setModel(dataModel);
-table.setEnabled(0);
+table1 = JTable();
+dataModel1 = DefaultTableModel(blockArray,blockHeadArray);
+table1.setModel(dataModel1);
+table1.setEnabled(0);
 
 % Set-up second right panel
 btn2Panel = JPanel(GridBagLayout());
 t4 = BorderFactory.createTitledBorder('Block Order:');
 btn2Panel.setBorder(t4);
-btn2Panel.add(table,gbc);
+btn2Panel.add(table1,gbc);
 btn2Panel.add(resetBtn,gbc);
 
 % Set-up entire right pane
@@ -303,10 +312,65 @@ right2.add(defaultBtn,gbc);
 splitpane3 = JSplitPane(JSplitPane.HORIZONTAL_SPLIT,left2,right2);
 splitpane3.setEnabled(false);
 
-% Put tabbed pane together
+%% Tabbed pane 3
+% Set-up first right panel
+condBtnPanel = JPanel(GridBagLayout());
+gbc = GridBagConstraints();
+gbc.gridx = 0;
+gbc.gridy = GridBagConstraints.RELATIVE;
+t6 = BorderFactory.createTitledBorder('Unused Conditions:');
+condBtnPanel.setBorder(t6);
+
+% Array definition for JTable and run list buttons
+condHeadArray = java.lang.String('Conditions');
+buttonHeaderHash.put(Integer(headIndex),condHeadArray);
+headIndex = headIndex + 1;
+callback3 = @(obj,evt)onListSelect(obj,evt);
+condBtns = cell([length(conditions) 3]);
+for i = 1:length(conditions)
+    condArray(i,1) = java.lang.String(conditions{i});
+    condBtns{i,1} = JButton(conditions{i});
+    condBtns{i,2} = handle(condBtns{i,1},'CallbackProperties');
+    condBtns{i,3} = 0; % False flag
+%     condbtn{i,4} = condHeadArray;
+    set(condBtns{i,2},'MouseClickedCallback', callback3);
+    condBtns{i,2}.setActionCommand(condHeadArray(1));
+    condBtns{i,1}.setEnabled(0);
+    condBtnPanel.add(condBtns{i,1}, gbc);
+end
+
+% Set-up reset button
+resetBtn2 = JButton('Reset');
+rbh2 = handle(resetBtn2,'CallbackProperties');
+resetBtn2.setActionCommand(condHeadArray(1));
+callback2 = @(obj,evt)onReset(obj,evt);
+set(rbh2,'MouseClickedCallback', callback2);
+
+% Define JTable
+table2 = JTable();
+dataModel2 = DefaultTableModel(condArray,condHeadArray);
+table2.setModel(dataModel2);
+table2.setEnabled(0);
+
+% Set-up second right panel
+btn3Panel = JPanel(GridBagLayout());
+t4 = BorderFactory.createTitledBorder('Condition Order:');
+btn3Panel.setBorder(t4);
+btn3Panel.add(table2,gbc);
+btn3Panel.add(resetBtn2,gbc);
+
+% Set-up entire right pane
+condPanel = JPanel(GridLayout(1,3));
+% condPanel.setMinimumSize(Dimension(250,275));
+% condPanel.setPreferredSize(Dimension(250,275));
+condPanel.add(condBtnPanel);
+condPanel.add(btn3Panel);
+
+%% Put tabbed panes together
 tabbedPane = JTabbedPane();
 tabbedPane.addTab('Main', [], splitpane2,'Main experimental settings');
 tabbedPane.addTab('Trial', [], splitpane3,'Trial experimental settings');
+tabbedPane.addTab('Condition', [], condPanel,'Condition experimental settings');
                   
 frame.add(tabbedPane);
 
@@ -314,11 +378,19 @@ frame.setResizable(0);
 frame.setVisible(1);
 
     function setSliderDefaults(src,evt)
-        % Set defaults
-        p1Slider.setValue(5);
-        maskSlider.setValue(5);
-        p2Slider.setValue(5);
-        fixSlider.setValue(5);
+        if debug
+            % Set debug defaults
+            p1Slider.setValue(1);
+            maskSlider.setValue(1);
+            p2Slider.setValue(1);
+            fixSlider.setValue(1);
+        else
+            % Set defaults
+            p1Slider.setValue(5);
+            maskSlider.setValue(5);
+            p2Slider.setValue(5);
+            fixSlider.setValue(5);
+        end
     end
 
     function label1Change(src,evt)
@@ -396,25 +468,58 @@ frame.setVisible(1);
     end
 
     function onListSelect(obj,evt) % When a run list button is pressed
+        import java.lang.Integer
+        switch char(obj.getActionCommand())
+            case buttonHeaderHash.get(Integer(1))
+                vals = blockvals;
+                tempBtnCell = blockBtns;
+                tempDataModel = dataModel1;
+                tempArray = blockArray;
+            case buttonHeaderHash.get(Integer(2))
+                vals = conditions;
+                tempBtnCell = condBtns;
+                tempDataModel = dataModel2;
+                tempArray = condArray;
+        end
         btn_txt = obj.get.Label();
-        btn_index = strcmp(blockvals,btn_txt);
-        if btn{btn_index,3} % Only if flag is set true
-            btn{btn_index,1}.setEnabled(0);
-            list_index = find(cellfun(@isempty,cell(listArray)),1);
-            listArray(list_index,1) = java.lang.String(btn_txt); % Modify list array
-            dataModel.addRow(java.lang.String(btn_txt)); % Add row
-            btn{btn_index,3} = 0; % Set false flag
+        btn_index = strcmp(vals,btn_txt);
+        if tempBtnCell{btn_index,3} % Only if flag is set true
+            tempBtnCell{btn_index,1}.setEnabled(0);
+            list_index = find(cellfun(@isempty,cell(tempArray)),1);
+            tempArray(list_index,1) = java.lang.String(btn_txt); % Modify list array
+            tempDataModel.addRow(java.lang.String(btn_txt)); % Add row
+            tempBtnCell{btn_index,3} = 0; % Set false flag
+            switch char(obj.getActionCommand())
+                case buttonHeaderHash.get(Integer(1))
+                    blockBtns = tempBtnCell;
+                    dataModel1 = tempDataModel;
+                case buttonHeaderHash.get(Integer(2))
+                    condBtns = tempBtnCell;
+                    dataModel2 = tempDataModel;
+            end
         else
         end
     end
 
     function onReset(obj,evt) % Whem the reset button is pressed
-        dataModel.setRowCount(0); % Clear table
-        listArray = [];
-        listArray = javaArray('java.lang.Object',length(blockvals),1); % Re-initialize listArray
-        for j = 1:size(btn,1); % Reset run list buttons and set flags true
-            btn{j,1}.setEnabled(1);
-            btn{j,3} = 1;
+        import java.lang.Integer
+        switch char(obj.getActionCommand())
+            case buttonHeaderHash.get(Integer(1))
+                dataModel1.setRowCount(0); % Clear table
+                blockArray = [];
+                blockArray = javaArray('java.lang.Object',length(blockvals),1); % Re-initialize listArray
+                for j = 1:size(blockBtns,1); % Reset run list buttons and set flags true
+                    blockBtns{j,1}.setEnabled(1);
+                    blockBtns{j,3} = 1;
+                end
+            case buttonHeaderHash.get(Integer(2))
+                dataModel2.setRowCount(0); % Clear table
+                condArray = [];
+                condArray = javaArray('java.lang.Object',length(conditions),1); % Re-initialize listArray
+                for j = 1:size(condBtns,1); % Reset run list buttons and set flags true
+                    condBtns{j,1}.setEnabled(1);
+                    condBtns{j,3} = 1;
+                end                
         end
     end
 
@@ -423,26 +528,35 @@ frame.setVisible(1);
         age = ageField.getText();
         selectedModel1 = group1.getSelection();
         gender = selectedModel1.getActionCommand();
-        listout = cell(listArray);
+        blockout = cell(blockArray);
+        condout = cell(condArray); 
         
         if isempty(char(sid)) % Check for empty SID
             javax.swing.JOptionPane.showMessageDialog(frame,'Subject ID is empty!','Subject ID check',javax.swing.JOptionPane.INFORMATION_MESSAGE);
         elseif isempty(char(age)) % Check for empty SID
             javax.swing.JOptionPane.showMessageDialog(frame,'Age field is empty!','Age check',javax.swing.JOptionPane.INFORMATION_MESSAGE);
-        elseif any(cellfun(@isempty,listout)) % Check for empty entries in order list
+        elseif any(cellfun(@isempty,blockout)) % Check for empty entries in order list
             javax.swing.JOptionPane.showMessageDialog(frame,'There are unused blocks!','Block order check',javax.swing.JOptionPane.INFORMATION_MESSAGE);
+        elseif any(cellfun(@isempty,condout)) % Check for empty entries in order list
+            javax.swing.JOptionPane.showMessageDialog(frame,'There are unused conditions!','Condition order check',javax.swing.JOptionPane.INFORMATION_MESSAGE);
         else
             
             % Parameter confirmation
-            s = [];
-            for k = 1:length(listout)
-                s = [s 'Block ' int2str(k) ': ' listout{k} '\n'];
+            blockStr = [];
+            for k = 1:length(blockout)
+                blockStr = [blockStr 'Block ' int2str(k) ': ' blockout{k} '\n'];
+            end
+            
+            condStr = [];
+            for k2 = 1:length(condout)
+                condStr = [condStr 'Condition ' int2str(k2) ': ' condout{k2} '\n'];
             end
             
             infostring = sprintf(['Subject ID: ' char(sid) ...
                 '\nAge: ' char(age) ...
                 '\nGender: ' char(gender) ...
-                '\n\nOrder: \n' s(1:end-2) ...
+                '\n\nBlock Order: \n' blockStr(1:end-2) ...
+                '\n\nCondition Order: \n' condStr(1:end-2) ...
                 '\n\nIs this correct?']);
             result = javax.swing.JOptionPane.showConfirmDialog(frame,infostring,'Confirm parameters',javax.swing.JOptionPane.YES_NO_OPTION);
             
@@ -454,7 +568,7 @@ frame.setVisible(1);
                 waitvals(3) = str2double(regexp(char(javaMethodEDT('getText',sliderLabel3)),'\d{1,1}.\d{2,2}','match'));
                 waitvals(4) = str2double(regexp(char(javaMethodEDT('getText',sliderLabel4)),'\d{1,1}.\d{2,2}','match'));
                 
-                setappdata(frame,'UserData',{char(sid),char(age),char(gender),listout,waitvals});
+                setappdata(frame,'UserData',{char(sid),char(age),char(gender),blockout,condout,waitvals});
                 frame.dispose();
             else
             end

@@ -37,8 +37,11 @@ classdef pres < handle
         %% Fixshow
         % Arguments: Monitor data structure
         function fixshow(monitor)
-            Screen('DrawLine',monitor.w,monitor.black,monitor.center_W-20,monitor.center_H,monitor.center_W+20,monitor.center_H,7);
-            Screen('DrawLine',monitor.w,monitor.black,monitor.center_W,monitor.center_H-20,monitor.center_W,monitor.center_H+20,7);
+            x_offset = 7;
+            y_offset = 25;
+            xy_offset = [x_offset y_offset];
+            Screen('DrawLine',monitor.w,monitor.black,(monitor.center_W-20)-xy_offset(1),monitor.center_H-xy_offset(2),(monitor.center_W+20)-xy_offset(1),monitor.center_H-xy_offset(2),7);
+            Screen('DrawLine',monitor.w,monitor.black,monitor.center_W-xy_offset(1),(monitor.center_H-20)-xy_offset(2),monitor.center_W-xy_offset(1),(monitor.center_H+20)-xy_offset(2),7);
             Screen('Flip',monitor.w);
         end
         

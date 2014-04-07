@@ -2,7 +2,7 @@ classdef main < handle
     % main.m class for WHR
     
     properties
-        debug = 0;
+        debug = 1;
         
         conditions = {'lines','bodies'};
         format
@@ -35,7 +35,7 @@ classdef main < handle
             
             narginchk(1,3);
             
-            name = [];ext = [];
+            name = [];ext = [];exclude = '[]';
             
             vin = size(varargin,2);
             
@@ -44,6 +44,10 @@ classdef main < handle
             elseif vin==2
                 name = varargin{1};
                 ext = varargin{2};
+            elseif vin==3
+                name = varargin{1};
+                ext = varargin{2};
+                exclude = varargin{3};
             end
             
             if ismac
@@ -55,7 +59,7 @@ classdef main < handle
                     [~,d] = system(['ls ' path filesep '*' name '*' ext ' | xargs -n1 basename']);
                 end
             elseif ispc
-                [~,d] = system(['dir /b "' path '"' filesep '*' name '*' ext]);
+                [~,d] = system(['dir /b "' path '"' filesep '*' name '*' ext ' | findstr /vi ".' exclude '"']);
             else
                 error('main.m (listDirectory): Unsupported OS.');
             end
@@ -86,7 +90,7 @@ classdef main < handle
             elseif size(num,2) == 1
                 txt(2:end,2) = num; % Second column, second row including headers
             else
-                error('main.m (readList): Error reading xlsx data');
+                error('main.m (readList): Error reading Excel data');
             end
             list = txt;
         end
@@ -267,79 +271,14 @@ classdef main < handle
         function saveSession(obj)
             save([obj.path.session filesep 'session'],'obj');
         end
-        
-        %% WriteData
-        function writeData(obj)
-            pathname = [obj.path.session filesep];
-            state = cellfun(@getState,obj.displayObjects);
-            for i = 1:length(obj.conditions)
-                blockdata.(obj.conditions{i}).trial = [];
-                blockdata.(obj.conditions{i}).summary = [];
-                for j = 1:size(obj.format,2) % Task index
-                    if state(i,j)
-                        switch obj.format{i,j,2} % Task index
-                            case 'judge'
-                                filename = [obj.subjinfo{1} '_' obj.conditions{i} '_judgment.csv'];
-                                out = [obj.displayObjects{i,j}.headers; obj.displayObjects{i,j}.list];
-                                cell2csv([pathname filename],out);
-                            case 'prac'
-                                filename = [obj.subjinfo{1} '_' obj.conditions{i} '_practrial.csv'];
-                                out = [obj.displayObjects{i,j}.headers; obj.displayObjects{i,j}.list];
-                                cell2csv([pathname filename],out);
-                            otherwise
-                                blockdata.(obj.conditions{i}).trial = [blockdata.(obj.conditions{i}).trial; obj.displayObjects{i,j}.list];
-                                
-                                levels = unique([obj.displayObjects{i,j}.list{:,6}]); % Levels col = 6
-                                levelData = zeros([length(levels) 5]); % acc, globalMeanRT, cleanMeanRT_upper, cleanMeanRT_lower, goodMeanRT
-                                for k = 1:length(levels)
-                                    tempLevelIndex = cellfun(@(y)(y==levels(k)),obj.displayObjects{i,j}.list(:,6));  % Levels col = 6
-                                    rt = obj.displayObjects{i,j}.list(tempLevelIndex,9); % RT col = 9
-                                    acc = obj.displayObjects{i,j}.list(tempLevelIndex,10); % Acc col = 10
-                                    accIndex = ~cellfun(@isempty,acc); % Existing indices
-                                    acc = [acc{accIndex}];
-                                    rt = [rt{accIndex}];
-                                    levelData(k,1) = mean(acc); % All existing accuracy
-                                    globalMeanRT = rt(acc==1); % RT of accuracy == 1
-                                    levelData(k,2) = mean(globalMeanRT);
-                                    levelData(k,3) = levelData(k,2) + 2*std(globalMeanRT); % globalMeanRT + 2*std(RT & accuracy == 1)
-                                    levelData(k,4) = levelData(k,2) - 2*std(globalMeanRT); % globalMeanRT - 2*std(RT & accuracy == 1)
-                                    bounds = globalMeanRT <= levelData(k,3) & globalMeanRT >= levelData(k,4);
-                                    levelData(k,5) = mean(globalMeanRT(bounds)); % RT within bounds                                    
-                                end
-                                tempSubjFormat = [repmat(obj.subjinfo(2),[length(levels) 1]), repmat(obj.subjinfo(3),[length(levels) 1]), repmat({obj.displayObjects{i,j}.task},[length(levels) 1])]; % 2 = Age, 3 = Gender
-                                tempLevelFormat =  num2cell([levels',levelData]);
-                                blockdata.(obj.conditions{i}).summary.(['block' obj.displayObjects{i,j}.task]) = [tempSubjFormat, tempLevelFormat];
-                               
-                        end
-                    end
-                end
-                
-                if ~isempty(blockdata.(obj.conditions{i}).trial)
-                    filename = [obj.subjinfo{1} '_' obj.conditions{i} '_trial.csv'];
-                    out = [obj.head.sm; blockdata.(obj.conditions{i}).trial];
-                    cell2csv([pathname filename],out);
-                end
-                
-                if ~isempty(blockdata.(obj.conditions{i}).summary)
-                    filename = [obj.subjinfo{1} '_' obj.conditions{i} '_summary.csv'];
-                    out = obj.head.summary;
-                    for l = 1:size(obj.format,2)-2
-                        if isfield(blockdata.(obj.conditions{i}).summary,['block' int2str(l)])
-                            out = [out; blockdata.(obj.conditions{i}).summary.(['block' int2str(l)])];
-                        end
-                    end
-                    cell2csv([pathname filename],out);                    
-                end
-            end
-        end
-        
+
         %% Expset
         function expset(obj)
             if obj.debug
                 fprintf('main.m (expset): UI query for experimental parameters.\n');
             end
             
-            frame = javaui(obj.blocks);
+            frame = javaui(obj.blocks,obj.conditions,obj.debug);
             waitfor(frame,'Visible','off'); % Wait for visibility to be off
             udInput = getappdata(frame,'UserData'); % Get frame data
             java.lang.System.gc();
@@ -350,8 +289,10 @@ classdef main < handle
             
             obj.subjinfo = {udInput{1},udInput{2},udInput{3}};
             obj.order = udInput{4};
-            obj.timing = udInput{5};
+            obj.conditions = udInput{5}';
             
+            obj.timing = udInput{6};
+                
             if obj.debug
                 fprintf('main.m (expset): Setting up key filter.\n');
             end
@@ -366,7 +307,7 @@ classdef main < handle
             if ispc
                 d = obj.listDirectory(obj.getPath('general'),'xlsx');
             elseif ismac
-                d = obj.listDirectory(obj.getPath('general'),'xls');
+                d = obj.listDirectory(obj.getPath('general'),'xls',[],[],'xlsx');
             end
             d = regexp(d(1:end-1),'\n','split');
             
@@ -497,7 +438,7 @@ classdef main < handle
         
         %% formatScreens
         function [displayObjects] = formatScreens(obj,presObj)
-            displaySequence = [1 2 3 6 9]; % Before judge, before prac, before task, before block 4, after final block (9)
+            displaySequence = [1 2 3 5 7 9]; % Before judge, before prac, before task, before block 3, before block 5, after final block (9)
             displayObjects = cell([length(obj.conditions) length(displaySequence)]);
             for i = 1:length(obj.conditions)
                 for j = 1:length(displaySequence)
@@ -516,9 +457,12 @@ classdef main < handle
                         case 3
                             pat = cell([1 1]);
                             pat{1} = [obj.conditions{i} '_sm_begin'];
-                        case 6
+                        case 5
                             pat = cell([1 1]);
-                            pat{1} = [obj.conditions{i} '_sm_halfway'];
+                            pat{1} = [obj.conditions{i} '_sm_break'];
+                        case 7
+                            pat = cell([1 1]);
+                            pat{1} = [obj.conditions{i} '_sm_break'];                            
                         case 9
                             pat = cell([1 1]);
                             pat{1} = [obj.conditions{i} '_sm_end'];
@@ -531,6 +475,71 @@ classdef main < handle
                     keymap = [obj.getKey('spacekey') obj.getKey('esckey')];
                     displayObjects{i,j} = sectionFactory(obj.debug,obj.monitor,displaySequence(j),screens,keymap);
                     displayObjects{i,j}.loadPresObj(presObj);
+                end
+            end
+        end
+        
+        %% WriteData
+        function writeData(obj)
+            pathname = [obj.path.session filesep];
+            state = cellfun(@getState,obj.displayObjects);
+            for i = 1:length(obj.conditions)
+                blockdata.(obj.conditions{i}).trial = [];
+                blockdata.(obj.conditions{i}).summary = [];
+                for j = 1:size(obj.format,2) % Task index
+                    if state(i,j)
+                        switch obj.format{i,j,2} % Task index
+                            case 'judge'
+                                filename = [obj.subjinfo{1} '_' obj.conditions{i} '_judgment.csv'];
+                                out = [obj.displayObjects{i,j}.headers; obj.displayObjects{i,j}.list];
+                                cell2csv([pathname filename],out);
+                            case 'prac'
+                                filename = [obj.subjinfo{1} '_' obj.conditions{i} '_practrial.csv'];
+                                out = [obj.displayObjects{i,j}.headers; obj.displayObjects{i,j}.list];
+                                cell2csv([pathname filename],out);
+                            otherwise
+                                blockdata.(obj.conditions{i}).trial = [blockdata.(obj.conditions{i}).trial; obj.displayObjects{i,j}.list];
+                                
+                                levels = unique([obj.displayObjects{i,j}.list{:,6}]); % Levels col = 6
+                                levelData = zeros([length(levels) 5]); % acc, globalMeanRT, cleanMeanRT_upper, cleanMeanRT_lower, goodMeanRT
+                                for k = 1:length(levels)
+                                    tempLevelIndex = cellfun(@(y)(y==levels(k)),obj.displayObjects{i,j}.list(:,6));  % Levels col = 6
+                                    rt = obj.displayObjects{i,j}.list(tempLevelIndex,9); % RT col = 9
+                                    acc = obj.displayObjects{i,j}.list(tempLevelIndex,10); % Acc col = 10
+                                    accIndex = ~cellfun(@isempty,acc); % Existing indices
+                                    acc = [acc{accIndex}];
+                                    rt = [rt{accIndex}];
+                                    levelData(k,1) = mean(acc); % All existing accuracy
+                                    globalMeanRT = rt(acc==1); % RT of accuracy == 1
+                                    levelData(k,2) = mean(globalMeanRT);
+                                    levelData(k,3) = levelData(k,2) + 2*std(globalMeanRT); % globalMeanRT + 2*std(RT & accuracy == 1)
+                                    levelData(k,4) = levelData(k,2) - 2*std(globalMeanRT); % globalMeanRT - 2*std(RT & accuracy == 1)
+                                    bounds = globalMeanRT <= levelData(k,3) & globalMeanRT >= levelData(k,4);
+                                    levelData(k,5) = mean(globalMeanRT(bounds)); % RT within bounds                                    
+                                end
+                                tempSubjFormat = [repmat(obj.subjinfo(2),[length(levels) 1]), repmat(obj.subjinfo(3),[length(levels) 1]), repmat({obj.displayObjects{i,j}.task},[length(levels) 1])]; % 2 = Age, 3 = Gender
+                                tempLevelFormat =  num2cell([levels',levelData]);
+                                blockdata.(obj.conditions{i}).summary.(['block' obj.displayObjects{i,j}.task]) = [tempSubjFormat, tempLevelFormat];
+                               
+                        end
+                    end
+                end
+                
+                if ~isempty(blockdata.(obj.conditions{i}).trial)
+                    filename = [obj.subjinfo{1} '_' obj.conditions{i} '_trial.csv'];
+                    out = [obj.head.sm; blockdata.(obj.conditions{i}).trial];
+                    cell2csv([pathname filename],out);
+                end
+                
+                if ~isempty(blockdata.(obj.conditions{i}).summary)
+                    filename = [obj.subjinfo{1} '_' obj.conditions{i} '_summary.csv'];
+                    out = obj.head.summary;
+                    for l = 1:size(obj.format,2)-2
+                        if isfield(blockdata.(obj.conditions{i}).summary,['block' int2str(l)])
+                            out = [out; blockdata.(obj.conditions{i}).summary.(['block' int2str(l)])];
+                        end
+                    end
+                    cell2csv([pathname filename],out);                    
                 end
             end
         end
