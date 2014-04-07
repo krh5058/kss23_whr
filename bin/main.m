@@ -2,7 +2,7 @@ classdef main < handle
     % main.m class for WHR
     
     properties
-        debug = 1;
+        debug = 0;
         
         conditions = {'lines','bodies'};
         format
